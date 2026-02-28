@@ -1,14 +1,51 @@
-import { StyleSheet } from 'react-native';
+import React, { useEffect, useState } from "react";
+import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, Button, Card, Text } from "react-native-paper";
+import { supabase } from "../../lib/supabase";
 
-import EditScreenInfo from '@/components/EditScreenInfo';
-import { Text, View } from '@/components/Themed';
+export default function HomeScreen() {
+  const [loading, setLoading] = useState(true);
+  const [dbMessage, setDbMessage] = useState("");
 
-export default function TabOneScreen() {
+  const testConnection = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("test_connection")
+      .select("*")
+      .single();
+    if (error) {
+      setDbMessage(`Error: ${error.message}`);
+    } else {
+      setDbMessage(`Conexión exitosa: ${JSON.stringify(data)}`);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    testConnection();
+  }, []);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text variant="headlineSmall" style={styles.title}>
+            Estado Nido
+          </Text>
+          {loading ? (
+            <ActivityIndicator animating={true} color="#a78bfa" />
+          ) : (
+            <View>
+              <Text variant="bodyLarge" style={styles.message}>
+                {dbMessage}
+              </Text>
+              <Button mode="contained" onPress={testConnection}>
+                Re-intentar
+              </Button>
+            </View>
+          )}
+        </Card.Content>
+      </Card>
     </View>
   );
 }
@@ -16,16 +53,22 @@ export default function TabOneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 20,
+    justifyContent: "center",
+    backgroundColor: "#f0f0f0",
+  },
+  card: {
+    padding: 20,
+    borderRadius: 20,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 10,
   },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
+  message: {
+    textAlign: "center",
+    marginVertical: 20,
+    color: "#f0f0f0",
   },
 });
