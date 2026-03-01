@@ -7,8 +7,8 @@ import { supabase } from '../../lib/supabase';
 
 export default function HomeScreen() {
   const { user, loading: authLoading } = useAuth();
-  const [dbLoading, setDbLoading] = useState(true);
-  const [dbMessage, setDbMessage] = useState('');
+  const [babies, setBabies] = useState<any[]>([]);
+  const [loadingBabies, setLoadingBabies] = useState(true);
   const router = useRouter();
 
   // 1. Proteger la ruta
@@ -18,25 +18,31 @@ export default function HomeScreen() {
     }
   }, [user, authLoading]);
 
-  // 2. Probar conexión a la DB
-  const testConnection = async () => {
-    setDbLoading(true);
+  // 2. Cargar bebés del tutor
+  const fetchBabies = async () => {
+    setLoadingBabies(true);
     try {
-      const { data, error } = await supabase.from('test_connection').select('*').single();
-      if (error) setDbMessage('Error DB: ' + error.message);
-      else setDbMessage(data.message);
+      const { data, error } = await supabase
+        .from('baby')
+        .select('*')
+        .eq('tutor_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        setBabies(data);
+      }
     } catch (err) {
-      setDbMessage('Error de red');
+      console.error(err);
     } finally {
-      setDbLoading(false);
+      setLoadingBabies(false);
     }
   };
 
   useEffect(() => {
-    if (user) testConnection();
+    if (user) fetchBabies();
   }, [user]);
 
-  if (authLoading) {
+  if (authLoading || loadingBabies) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#a78bfa" />
@@ -48,27 +54,42 @@ export default function HomeScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Card style={styles.card}>
-        <Card.Title
-          title="Dashboard Nido"
-          subtitle={user?.email}
-          left={(props) => <Avatar.Icon {...props} icon="account" />}
-        />
-        <Card.Content>
-          <Text variant="bodyLarge" style={styles.welcome}>¡Hola de nuevo, Tutor!</Text>
-          <View style={styles.statusBox}>
-            <Text variant="labelLarge">Estado de Conexión:</Text>
-            {dbLoading ? (
-              <ActivityIndicator animating={true} style={{ marginTop: 10 }} />
-            ) : (
-              <Text style={styles.dbText}>{dbMessage}</Text>
-            )}
-          </View>
-          <Button mode="contained-tonal" onPress={() => supabase.auth.signOut()} style={styles.btn}>
-            Cerrar Sesión
-          </Button>
-        </Card.Content>
-      </Card>
+      <Text variant="headlineMedium" style={styles.headerTitle}>Mi Familia NIDO</Text>
+
+      {babies.length === 0 ? (
+        <Card style={styles.card}>
+          <Card.Content style={styles.emptyState}>
+            <Text variant="bodyLarge" style={styles.welcome}>¡Aún no tienes bebés registrados!</Text>
+            <Button mode="contained" onPress={() => router.push('/register-baby' as any)} style={styles.btn}>
+              Registrar Bebé
+            </Button>
+          </Card.Content>
+        </Card>
+      ) : (
+        babies.map((baby) => (
+          <Card key={baby.baby_id} style={styles.babyCard} onPress={() => router.push({ pathname: '/activities-list', params: { baby_id: baby.baby_id } })}>
+            <Card.Title
+              title={baby.name}
+              subtitle={`Nacido el: ${baby.birth_date}`}
+              left={(props) => <Avatar.Icon {...props} icon="baby-face-outline" />}
+            />
+            <Card.Content>
+              <Text>Semanas Gestación: {baby.weeks_gestation}</Text>
+              {baby.is_premature && <Text style={{ color: 'orange' }}>Bebé Prematuro</Text>}
+            </Card.Content>
+          </Card>
+        ))
+      )}
+
+      {babies.length > 0 && (
+        <Button mode="outlined" onPress={() => router.push('/register-baby' as any)} style={{ marginTop: 15 }}>
+          Añadir otro bebé
+        </Button>
+      )}
+
+      <Button mode="text" onPress={() => supabase.auth.signOut()} style={styles.btnOut}>
+        Cerrar Sesión
+      </Button>
     </ScrollView>
   );
 }
@@ -78,35 +99,43 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     padding: 20,
     backgroundColor: '#f0f2f5',
-    justifyContent: 'center'
   },
   center: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center'
   },
+  headerTitle: {
+    fontWeight: 'bold',
+    marginBottom: 20,
+    marginTop: 10,
+    color: '#333'
+  },
   card: {
     borderRadius: 20,
-    elevation: 5
+    elevation: 2,
+    marginTop: 20,
+  },
+  babyCard: {
+    borderRadius: 16,
+    marginBottom: 15,
+    elevation: 3,
+    backgroundColor: '#ffffff'
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 20
   },
   welcome: {
     marginVertical: 15,
-    fontWeight: 'bold'
-  },
-  statusBox: {
-    padding: 15,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    marginVertical: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0'
-  },
-  dbText: {
-    color: '#10b981',
-    marginTop: 5,
-    fontWeight: '600'
+    fontWeight: 'bold',
+    textAlign: 'center'
   },
   btn: {
-    marginTop: 20
+    marginTop: 20,
+    width: '100%'
   },
+  btnOut: {
+    marginTop: 40
+  }
 });
