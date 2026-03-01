@@ -74,11 +74,39 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, padding: 20, backgroundColor: '#f0f2f5', justifyContent: 'center' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  card: { borderRadius: 20, elevation: 5 },
-  welcome: { marginVertical: 15, fontWeight: 'bold' },
-  statusBox: { padding: 15, backgroundColor: '#fff', borderRadius: 10, marginVertical: 10, borderWidth: 1, borderColor: '#e0e0e0' },
-  dbText: { color: '#10b981', marginTop: 5, fontWeight: '600' },
-  btn: { marginTop: 20 },
+  container: {
+    flexGrow: 1,
+    padding: 20,
+    backgroundColor: '#f0f2f5',
+    justifyContent: 'center'
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  card: {
+    borderRadius: 20,
+    elevation: 5
+  },
+  welcome: {
+    marginVertical: 15,
+    fontWeight: 'bold'
+  },
+  statusBox: {
+    padding: 15,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0'
+  },
+  dbText: {
+    color: '#10b981',
+    marginTop: 5,
+    fontWeight: '600'
+  },
+  btn: {
+    marginTop: 20
+  },
 });
