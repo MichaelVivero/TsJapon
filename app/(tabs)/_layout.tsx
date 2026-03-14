@@ -10,7 +10,7 @@ function TabBarIcon(props: {
   name: React.ComponentProps<typeof FontAwesome>['name'];
   color: string;
 }) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
+  return <FontAwesome size={28} style={{ marginBottom: 0 }} {...props} />;
 }
 
 export default function TabLayout() {
@@ -44,7 +44,7 @@ export default function TabLayout() {
         options={{
           title: 'Inicio',
           headerShown: false, // Custom header handled in screen
-          tabBarIcon: ({ color }) => <FontAwesome name="home" size={28} color={color} />,
+          tabBarIcon: ({ color }) => <FontAwesome name="home" size={28} color={color} style={{ marginTop: 5 }} />,
         }}
       />
       <Tabs.Screen
@@ -52,7 +52,7 @@ export default function TabLayout() {
         options={{
           title: 'Progreso',
           headerShown: false,
-          tabBarIcon: ({ color }) => <FontAwesome name="heartbeat" size={26} color={color} />,
+          tabBarIcon: ({ color }) => <FontAwesome name="heartbeat" size={26} color={color} style={{ marginTop: 5 }} />,
         }}
       />
     </Tabs>
