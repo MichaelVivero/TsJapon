@@ -7,12 +7,16 @@ import { TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Colors from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
+import { useBaby } from '../context/BabyContext';
+import { calculateBabyAges } from '../lib/babyLogic';
 import { supabase } from '../lib/supabase';
+import { ensureWeeklyPlanExists } from '../lib/weeklyPlanner';
 
 const { width } = Dimensions.get('window');
 
 export default function RegisterBabyScreen() {
     const { user } = useAuth();
+    const { babies, refreshBabies } = useBaby();
     const router = useRouter();
 
     const [name, setName] = useState('');
@@ -43,22 +47,68 @@ export default function RegisterBabyScreen() {
             return Alert.alert('Error', 'Indica las semanas de gestación válidas');
         }
 
+        const now = new Date();
+        const ageInMonths = (now.getFullYear() - birthDate.getFullYear()) * 12 + now.getMonth() - birthDate.getMonth();
+        if (ageInMonths > 36) {
+            return Alert.alert('Aviso', 'Nido está diseñado para la estimulación temprana de niños de 0 a 36 meses (3 años).');
+        }
+
+        if (babies.length >= 2) {
+            return Alert.alert('Límite Alcanzado', 'Actualmente solo puedes registrar un máximo de 2 bebés por cuenta.');
+        }
+
         setLoading(true);
         const parsedWeeks = isPremature ? parseInt(weeks) : 40;
         const formattedDate = formatDate(birthDate);
 
-        const { error } = await supabase.from('baby').insert([{
+        const { data: newBaby, error } = await supabase.from('baby').insert([{
             tutor_id: user?.id,
             name,
             birth_date: formattedDate,
             weeks_gestation: parsedWeeks,
             is_premature: isPremature,
             sex: 'O' // Defaulting
-        }]);
+        }]).select('baby_id').single();
 
-        if (error) {
-            Alert.alert('Error', error.message);
+        if (error || !newBaby) {
+            Alert.alert('Error', error?.message || 'No se pudo crear el perfil del bebé');
         } else {
+            // Actively generate weekly plan immediately upon creation
+            try {
+                const { cronological, corrected } = calculateBabyAges(formattedDate, parsedWeeks);
+                const targetAgeInMonths = Math.floor(isPremature ? corrected : cronological);
+
+                // Fetch correct range
+                let { data: rangeData } = await supabase
+                    .from('age_range')
+                    .select('range_id')
+                    .lte('min_months', targetAgeInMonths)
+                    .gte('max_months', targetAgeInMonths)
+                    .limit(1);
+
+                if (!rangeData || rangeData.length === 0) {
+                    const { data: fallbackRange } = await supabase
+                        .from('age_range')
+                        .select('range_id')
+                        .order('min_months', { ascending: true })
+                        .limit(1);
+                    rangeData = fallbackRange;
+                }
+
+                if (rangeData && rangeData.length > 0) {
+                    const activeRangeId = rangeData[0].range_id;
+                    const planCreated = await ensureWeeklyPlanExists(newBaby.baby_id, activeRangeId, isPremature);
+
+                    if (!planCreated) {
+                        console.warn('Weekly plan skipped or failed during registration');
+                    }
+                }
+            } catch (err: any) {
+                console.error('Error generating initial plan:', err);
+                // We won't block the user, but we log the issue
+            }
+
+            await refreshBabies();
             router.replace('/(tabs)');
         }
         setLoading(false);
@@ -174,6 +224,14 @@ export default function RegisterBabyScreen() {
                                 />
                             </View>
                         )}
+
+                        {/* Immutable warning message */}
+                        <View style={styles.warningBox}>
+                            <Ionicons name="warning" size={20} color="#b45309" />
+                            <Text style={styles.warningText}>
+                                Nota importante: La fecha de nacimiento no podrá ser editada posteriormente ya que es clave para estructurar metodología de estimulación semanal de tu bebé.
+                            </Text>
+                        </View>
                     </View>
 
                     <View style={{ flex: 1 }} />
@@ -391,5 +449,22 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
         shadowRadius: 2,
+    },
+    warningBox: {
+        flexDirection: 'row',
+        backgroundColor: '#fef3c7',
+        padding: 16,
+        borderRadius: 16,
+        marginTop: 10,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#fde68a'
+    },
+    warningText: {
+        flex: 1,
+        marginLeft: 12,
+        fontSize: 13,
+        color: '#b45309',
+        lineHeight: 20
     }
 });
